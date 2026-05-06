@@ -2,14 +2,14 @@
 
 ## 项目结构
 
-- `langgraph-backend-python/` — FastAPI + LangGraph Python 后端（端口 3000）
-- `langgraph-ui/` — React 前端（Vite，端口 5173）
+- `backend/` — FastAPI + LangGraph Python 后端（端口 3000）
+- `frontend/` — React 前端（Vite，端口 5173）
 
 ## 启动命令
 
 ```bash
 # 后端（推荐 uv 运行）
-cd langgraph-backend-python
+cd backend
 uv venv && uv pip install -r requirements.txt
 uv run python main.py
 
@@ -17,17 +17,17 @@ uv run python main.py
 uvicorn main:app --host 0.0.0.0 --port 3000 --reload
 
 # 前端
-cd langgraph-ui && pnpm install && pnpm run dev
+cd frontend && pnpm install && pnpm run dev
 ```
 
 ## 构建
 
 ```bash
 # 后端构建（Python 无需编译，检查语法即可）
-uv run python -m py_compile main.py
+cd backend && uv run python -m py_compile main.py
 
 # 前端构建
-cd langgraph-ui && pnpm run build
+cd frontend && pnpm run build
 ```
 
 ## API 接口（与原 NestJS 版兼容）
