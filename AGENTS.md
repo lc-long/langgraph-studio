@@ -2,46 +2,33 @@
 
 ## 项目结构
 
-- `backend/` — FastAPI + LangGraph Python 后端（端口 3000）
-- `frontend/` — React 前端（Vite，端口 5173）
+- `backend/` — FastAPI + LangGraph Python 后端
+- `frontend/` — React 前端（Vite）
 
 ## 启动命令
 
 ```bash
-# 后端（推荐 uv 运行）
+# 后端
 cd backend
 uv venv && uv pip install -r requirements.txt
 uv run python main.py
-
-# 或用 uvicorn 直接运行
-uvicorn main:app --host 0.0.0.0 --port 3000 --reload
 
 # 前端
 cd frontend && pnpm install && pnpm run dev
 ```
 
-## 构建
+## API 接口路径
 
-```bash
-# 后端构建（Python 无需编译，检查语法即可）
-cd backend && uv run python -m py_compile main.py
-
-# 前端构建
-cd frontend && pnpm run build
-```
-
-## API 接口（与原 NestJS 版兼容）
-
-所有接口路径保持不变，前端可直接复用。
+所有路径已修复（FastAPI 需要 route decorator 带前导斜杠）：
 
 ### 文档一
 - `POST /langgraph/simple-chat` — 无记忆问答
 - `POST /langgraph/memory-chat` — 有记忆多轮对话
-- `GET /langgraph/history/{threadId}` — 查看对话历史
+- `GET /langgraph/history/{thread_id}` — 查看对话历史
 - `POST /langgraph/article` — 文章摘要流水线
 
 ### 文档二
-- `POST /langgraph/react-chat` — ReAct Agent（工具调用）
+- `POST /langgraph/react-chat` — ReAct Agent
 - `POST /langgraph/route` — 分类路由
 - `POST /langgraph/parallel` — 并行分支任务
 
@@ -51,31 +38,37 @@ cd frontend && pnpm run build
 - `POST /langgraph/code-review` — 并行代码审查
 
 ### 文档四
-- `POST /langgraph/email/start` — 启动邮件审批
-- `POST /langgraph/email/{threadId}/approve` — 批准
-- `POST /langgraph/email/{threadId}/reject` — 拒绝
-- `POST /langgraph/email/{threadId}/modify` — 要求修改
-- `GET /langgraph/email/{threadId}/state` — 查看状态
+- `POST /langgraph/email/start`
+- `POST /langgraph/email/{thread_id}/approve`
+- `POST /langgraph/email/{thread_id}/reject`
+- `POST /langgraph/email/{thread_id}/modify`
+- `GET /langgraph/email/{thread_id}/state`
 
 ### 文档五
-- `POST /langgraph/research/start` — 启动调研
-- `POST /langgraph/research/{threadId}/approve` — 批准发布
-- `POST /langgraph/research/{threadId}/revise` — 要求修改
-- `POST /langgraph/research/{threadId}/reject` — 拒绝
-- `GET /langgraph/research/{threadId}/state` — 查看状态
+- `POST /langgraph/research/start`
+- `POST /langgraph/research/{thread_id}/approve`
+- `POST /langgraph/research/{thread_id}/revise`
+- `POST /langgraph/research/{thread_id}/reject`
+- `GET /langgraph/research/{thread_id}/state`
 
-## 重要配置
+## 配置
 
-模型配置在 `app/config.py` 中，从 `.env` 读取：
-- `LANGGRAPH_MODEL` — 模型名称（默认 `qwen3.5:0.8b`）
-- `OLLAMA_BASE_URL` — API 地址（默认 `http://localhost:11434/v1`）
-- `OLLAMA_API_KEY` — API Key（默认 `ollama`）
+`backend/.env` 中的配置优先于 `app/config.py`：
 
-本地开发需 Ollama：`ollama serve` + `ollama pull qwen3.5:0.8b`
+```bash
+# DeepSeek（默认）
+DEEPSEEK_API_KEY=sk-xxx
+DEEPSEEK_MODEL=deepseek-chat
+LANGGRAPH_PROVIDER=deepseek
+
+# Ollama（备用）
+OLLAMA_BASE_URL=http://localhost:11434/v1
+OLLAMA_API_KEY=ollama
+```
 
 ## 技术栈
 
 - **FastAPI** — Web 框架
-- **LangGraph** — AI 工作流编排（Python）
-- **langchain-ollama** — Ollama 集成
+- **LangGraph 1.x** — AI 工作流编排
+- **langchain-openai** / **langchain-ollama** — LLM 集成
 - **uvicorn** — ASGI 服务器
