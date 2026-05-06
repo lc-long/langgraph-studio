@@ -1,16 +1,8 @@
 from typing import TypedDict
-from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END
 from langchain_core.messages import HumanMessage
 
-from app.config import config
-
-llm = ChatOllama(
-    model=config["langgraph"]["model"],
-    temperature=0,
-    base_url=config["langgraph"]["base_url"],
-    num_predict=config["langgraph"]["num_predict"],
-)
+from app.services.llm_factory import get_llm
 
 
 class RoutingState(TypedDict):
@@ -21,6 +13,7 @@ class RoutingState(TypedDict):
 
 def build_graph():
     def classify(state: RoutingState):
+        llm = get_llm(temperature=0)
         res = llm.invoke([
             HumanMessage(
                 content=f"把用户问题分类，只输出类别名，不要其他内容：\n- technical（技术/编程类）\n- pricing（价格/费用类）\n- general（其他）\n\n用户问题：{state['userInput']}"
@@ -32,6 +25,7 @@ def build_graph():
 
     def make_handler(system_prompt: str):
         def handler(state: RoutingState):
+            llm = get_llm()
             res = llm.invoke([
                 HumanMessage(content=f"{system_prompt}\n\n用户问题：{state['userInput']}")
             ])

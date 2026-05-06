@@ -1,23 +1,24 @@
-import os
 from typing import Optional
-from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
-from app.config import config
-
-llm = ChatOllama(
-    model=config["langgraph"]["model"],
-    temperature=config["langgraph"]["temperature"],
-    base_url=config["langgraph"]["base_url"],
-    num_predict=config["langgraph"]["num_predict"],
-)
+from app.services.llm_factory import get_llm
 
 memory_checkpointer = MemorySaver()
+_llm = None
+
+
+def get_llm_instance():
+    global _llm
+    if _llm is None:
+        _llm = get_llm()
+    return _llm
 
 
 def build_simple_graph():
+    llm = get_llm_instance()
+
     def call_model(state: MessagesState):
         response = llm.invoke(state["messages"])
         return {"messages": [response]}
@@ -30,6 +31,8 @@ def build_simple_graph():
 
 
 def build_memory_graph():
+    llm = get_llm_instance()
+
     def call_model_with_memory(state: MessagesState):
         messages = [
             SystemMessage(content="你是专业的 AI 助手，请记住对话上下文。"),

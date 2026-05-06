@@ -1,17 +1,9 @@
 import uuid
 from typing import Any, Literal
-from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Command
 
-from app.config import config
-
-llm = ChatOllama(
-    model=config["langgraph"]["model"],
-    temperature=config["langgraph"]["temperature"],
-    base_url=config["langgraph"]["base_url"],
-    num_predict=config["langgraph"]["num_predict"],
-)
+from app.services.llm_factory import get_llm
 
 RunState = {
     "input": str,
@@ -196,11 +188,13 @@ async def execute_graph(nodes: list[dict], edges: list[dict], input_str: str, na
 
     graph = StateGraph(RunState)
 
+    llm_instance = get_llm()
+
     for node in nodes:
         nt = node["data"]["nodeType"]
         if nt == "start" or nt == "end":
             continue
-        handler = make_handler(node["data"], llm)
+        handler = make_handler(node["data"], llm_instance)
         graph.add_node(node["id"], handler)
 
     first_edge = adj.get(start_node["id"])
@@ -321,7 +315,8 @@ class WorkflowService:
     async def test_node(node_data: dict, input_str: str = "") -> dict:
         import time
         t0 = time.time()
-        handler = make_handler(node_data, llm)
+        llm_instance = get_llm()
+        handler = make_handler(node_data, llm_instance)
         fake_state = {"input": input_str, "output": input_str, "logs": [], "nodeResults": {}, "condBranch": "false"}
         patch = await handler(fake_state)
         http_status = None

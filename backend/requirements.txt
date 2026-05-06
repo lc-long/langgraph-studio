@@ -2,7 +2,8 @@ fastapi==0.115.0
 uvicorn[standard]==0.30.6
 langchain==0.3.7
 langchain-ollama==0.2.0
-langgraph==0.2.6
+langchain-openai==0.3.0
+langgraph==1.0.8
 pydantic==2.9.2
 python-dotenv==1.0.1
 aiohttp==3.10.5

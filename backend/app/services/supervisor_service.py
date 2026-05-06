@@ -1,17 +1,9 @@
 from typing import TypedDict
-from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Command
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
-from app.config import config
-
-llm = ChatOllama(
-    model=config["langgraph"]["model"],
-    temperature=config["langgraph"]["temperature"],
-    base_url=config["langgraph"]["base_url"],
-    num_predict=config["langgraph"]["num_predict"],
-)
+from app.services.llm_factory import get_llm
 
 
 class SupervisorState(TypedDict):
@@ -22,6 +14,7 @@ class SupervisorState(TypedDict):
 
 def build_graph():
     def supervisor(state: SupervisorState):
+        llm = get_llm()
         done = (
             f"已完成：{', '.join(state['completedAgents'])}"
             if state["completedAgents"]
@@ -56,6 +49,7 @@ def build_graph():
 
     def create_worker(name: str, system_prompt: str):
         def worker(state: SupervisorState):
+            llm = get_llm()
             user_msg = next(
                 (m.content for m in reversed(state["messages"]) if isinstance(m, HumanMessage)),
                 "",

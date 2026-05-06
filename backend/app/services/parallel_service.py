@@ -1,17 +1,9 @@
 from typing import TypedDict
-from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Send
 from langchain_core.messages import HumanMessage
 
-from app.config import config
-
-llm = ChatOllama(
-    model=config["langgraph"]["model"],
-    temperature=config["langgraph"]["temperature"],
-    base_url=config["langgraph"]["base_url"],
-    num_predict=config["langgraph"]["num_predict"],
-)
+from app.services.llm_factory import get_llm
 
 
 class ParallelState(TypedDict):
@@ -26,6 +18,7 @@ class SubState(TypedDict):
 
 def build_graph():
     def split_task(state: ParallelState):
+        llm = get_llm()
         res = llm.invoke([
             HumanMessage(
                 content=f"把以下任务拆成 3 个独立子任务，每个子任务单独一行，不要编号：\n\n{state['task']}"
@@ -38,12 +31,14 @@ def build_graph():
         ]
 
     def process_sub_task(state: SubState):
+        llm = get_llm()
         res = llm.invoke([
             HumanMessage(content=f"完成以下任务，100 字以内：\n{state['task']}")
         ])
         return {"results": [{"task": state["task"], "result": res.content}]}
 
     def merge_results(state: ParallelState):
+        llm = get_llm()
         text = "\n\n".join(
             f"子任务 {i + 1}：{r['task']}\n结果：{r['result']}"
             for i, r in enumerate(state["results"])

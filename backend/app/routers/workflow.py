@@ -70,11 +70,11 @@ async def run(wf_id: str, dto: RunWorkflowDto):
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.post("run-direct")
+@router.post("/run-direct")
 async def run_direct(dto: RunDirectDto):
     return await WorkflowService.run_direct(dto.nodes, dto.edges, dto.input)
 
 
-@router.post("test-node")
+@router.post("/test-node")
 async def test_node(dto: TestNodeDto):
     return await WorkflowService.test_node(dto.nodeData, dto.input)

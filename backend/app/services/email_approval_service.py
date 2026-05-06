@@ -1,20 +1,13 @@
 import json
 from typing import TypedDict, Literal
-from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Command, interrupt
 from langchain_core.messages import HumanMessage
 
-from app.config import config
+from app.services.llm_factory import get_llm
+from langgraph.checkpoint.memory import MemorySaver
 
-llm = ChatOllama(
-    model=config["langgraph"]["model"],
-    temperature=config["langgraph"]["temperature"],
-    base_url=config["langgraph"]["base_url"],
-    num_predict=config["langgraph"]["num_predict"],
-)
-
-memory_checkpointer = None
+memory_checkpointer = MemorySaver()
 
 
 class EmailState(TypedDict):
@@ -26,16 +19,9 @@ class EmailState(TypedDict):
     finalStatus: str
 
 
-_graph_instance = None
-
-
 def get_graph():
-    global memory_checkpointer
-    if memory_checkpointer is None:
-        from langgraph.checkpoint.memory import MemorySaver
-        memory_checkpointer = MemorySaver()
-
     def draft_node(state: EmailState):
+        llm = get_llm()
         is_revision = bool(state.get("modifyFeedback"))
         prompt = (
             f"根据修改意见重新起草邮件：\n"

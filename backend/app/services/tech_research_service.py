@@ -1,19 +1,11 @@
 import json
-from typing import TypedDict, Literal, Any
-from langchain_ollama import ChatOllama
+from typing import TypedDict, Literal
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Send, Command, interrupt
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage
 
-from app.config import config
-
-llm = ChatOllama(
-    model=config["langgraph"]["model"],
-    temperature=config["langgraph"]["temperature"],
-    base_url=config["langgraph"]["base_url"],
-    num_predict=config["langgraph"]["num_predict"],
-)
+from app.services.llm_factory import get_llm
 
 FALLBACK_DIMENSIONS = [
     {"dimension": "技术能力与性能", "focusPoints": ["功能完整性", "并发性能", "延迟表现"]},
@@ -75,6 +67,7 @@ class TechResearchService:
                 return fallback
 
         def parse_task(state: TechResearchState):
+            llm = get_llm()
             res = llm.invoke([
                 HumanMessage(
                     content=f"""你是技术分析师。把以下技术选型问题拆分成 3 个独立的调研维度。
@@ -99,6 +92,7 @@ class TechResearchService:
             ]
 
         def research_agent(state: SingleResearchState):
+            llm = get_llm()
             res = llm.invoke([
                 HumanMessage(
                     content=f"""你是技术专家。针对以下技术选型维度，给出客观分析。
@@ -122,6 +116,7 @@ class TechResearchService:
             }
 
         def analyze_results(state: TechResearchState):
+            llm = get_llm()
             text = "\n\n".join(
                 f"【{r['dimension']}】\n发现：{r['findings']}\n优势：{', '.join(r.get('pros', []))}\n劣势：{', '.join(r.get('cons', []))}"
                 for r in state["researchResults"]
@@ -148,6 +143,7 @@ class TechResearchService:
             }
 
         def generate_report(state: TechResearchState):
+            llm = get_llm()
             version_note = (
                 f"\n\n重要：请根据以下修改意见重新生成报告：{state['humanFeedback']}"
                 if state.get("humanFeedback")

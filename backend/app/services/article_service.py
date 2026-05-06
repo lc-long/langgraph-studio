@@ -1,16 +1,8 @@
 from typing import TypedDict
-from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END
 from langchain_core.messages import HumanMessage
 
-from app.config import config
-
-llm = ChatOllama(
-    model=config["langgraph"]["model"],
-    temperature=0.3,
-    base_url=config["langgraph"]["base_url"],
-    num_predict=config["langgraph"]["num_predict"],
-)
+from app.services.llm_factory import get_llm
 
 
 class ArticleState(TypedDict):
@@ -24,6 +16,7 @@ def build_graph():
     def extract_keywords(state: ArticleState):
         import time
         t0 = time.time()
+        llm = get_llm(temperature=0.3)
         res = llm.invoke([
             HumanMessage(
                 content=f"从以下文章提取 5-8 个核心关键词，只输出关键词，逗号分隔，不要其他内容：\n\n{state['article']}"
@@ -38,6 +31,7 @@ def build_graph():
     def generate_summary(state: ArticleState):
         import time
         t0 = time.time()
+        llm = get_llm(temperature=0.3)
         res = llm.invoke([
             HumanMessage(
                 content=f"根据以下文章生成 200 字以内的摘要。\n关键词参考：{', '.join(state['keywords'])}\n\n文章：\n{state['article']}"

@@ -1,16 +1,8 @@
 from typing import TypedDict
-from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END
 from langchain_core.messages import HumanMessage
 
-from app.config import config
-
-llm = ChatOllama(
-    model=config["langgraph"]["model"],
-    temperature=config["langgraph"]["temperature"],
-    base_url=config["langgraph"]["base_url"],
-    num_predict=config["langgraph"]["num_predict"],
-)
+from app.services.llm_factory import get_llm
 
 
 class PipelineState(TypedDict):
@@ -24,6 +16,7 @@ class PipelineState(TypedDict):
 
 def build_graph():
     def research_agent(state: PipelineState):
+        llm = get_llm()
         res = llm.invoke([
             HumanMessage(
                 content=f"""你是研究员，为主题"{state['topic']}"收集素材：
@@ -36,6 +29,7 @@ def build_graph():
         return {"research": res.content, "progress": ["✅ 素材收集完成"]}
 
     def outline_agent(state: PipelineState):
+        llm = get_llm()
         res = llm.invoke([
             HumanMessage(
                 content=f"""你是内容策划，根据素材为"{state['topic']}"生成大纲：
@@ -46,6 +40,7 @@ def build_graph():
         return {"outline": res.content, "progress": ["✅ 大纲生成完成"]}
 
     def writing_agent(state: PipelineState):
+        llm = get_llm()
         res = llm.invoke([
             HumanMessage(
                 content=f"""你是撰稿人，根据大纲写文章（400-600 字）：
@@ -57,6 +52,7 @@ def build_graph():
         return {"draft": res.content, "progress": ["✅ 初稿写作完成"]}
 
     def review_agent(state: PipelineState):
+        llm = get_llm()
         res = llm.invoke([
             HumanMessage(
                 content=f"你是编辑，优化以下文章，直接输出优化后全文：\n{state['draft']}"

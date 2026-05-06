@@ -1,18 +1,10 @@
 import json
 from typing import TypedDict
-from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Send
 from langchain_core.messages import HumanMessage
 
-from app.config import config
-
-llm = ChatOllama(
-    model=config["langgraph"]["model"],
-    temperature=0,
-    base_url=config["langgraph"]["base_url"],
-    num_predict=config["langgraph"]["num_predict"],
-)
+from app.services.llm_factory import get_llm
 
 
 class ReviewState(TypedDict):
@@ -58,6 +50,7 @@ def build_graph():
         ]
 
     def review_agent(state: SingleReviewState):
+        llm = get_llm(temperature=0)
         res = llm.invoke([
             HumanMessage(
                 content=f"{state['prompt']}\n\n{state['language']} 代码：\n```\n{state['code']}\n```"
@@ -73,6 +66,7 @@ def build_graph():
         }
 
     def generate_report(state: ReviewState):
+        llm = get_llm()
         avg_score = round(
             sum(r["score"] for r in state["reviewResults"])
             / len(state["reviewResults"])

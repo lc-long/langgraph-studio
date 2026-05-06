@@ -1,5 +1,4 @@
 from typing import TypedDict
-from langchain_ollama import ChatOllama
 from langchain_core.tools import tool
 from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.checkpoint.memory import MemorySaver
@@ -7,14 +6,7 @@ from langgraph.prebuilt import ToolNode
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from pydantic import BaseModel
 
-from app.config import config
-
-llm = ChatOllama(
-    model=config["langgraph"]["model"],
-    temperature=0,
-    base_url=config["langgraph"]["base_url"],
-    num_predict=config["langgraph"]["num_predict"],
-)
+from app.services.llm_factory import get_llm
 
 
 class CalculatorInput(BaseModel):
@@ -42,12 +34,13 @@ def get_weather(city: str) -> str:
 
 
 tools = [calculator_tool, get_weather]
-llm_with_tools = llm.bind_tools(tools)
 memory_checkpointer = MemorySaver()
 
 
 def build_graph():
     def call_model(state: MessagesState):
+        llm = get_llm(temperature=0)
+        llm_with_tools = llm.bind_tools(tools)
         messages = [
             SystemMessage(content="你是专业助手，可用工具：\n- calculator：数学计算\n- get_weather：查询天气\n根据问题决定是否调用工具。"),
             *state["messages"],
