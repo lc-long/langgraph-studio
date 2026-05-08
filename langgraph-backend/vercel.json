@@ -1,22 +1,12 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm ci",
+  "buildCommand": "pnpm run build",
+  "installCommand": "pnpm install --no-frozen-lockfile",
   "framework": null,
+  "regions": ["iad1"],
   "functions": {
-    "dist/main.js": {
-      "runtime": "nodejs20.x",
+    "api/index.ts": {
       "maxDuration": 60
     }
-  },
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "dist/main.js"
-    }
-  ],
-  "env": {
-    "NODE_ENV": "production"
   }
 }
