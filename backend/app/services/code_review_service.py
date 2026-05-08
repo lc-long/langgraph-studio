@@ -1,8 +1,10 @@
 import json
-from typing import TypedDict
+from typing import TypedDict, Annotated
 from langgraph.graph import StateGraph, START, END
-from langgraph.types import Send
+from langgraph.types import Send, Command
+from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage
+import operator
 
 from app.services.llm_factory import get_llm
 
@@ -10,7 +12,7 @@ from app.services.llm_factory import get_llm
 class ReviewState(TypedDict):
     code: str
     language: str
-    reviewResults: list[dict]
+    reviewResults: Annotated[list[dict], operator.add]
     report: str
 
 
@@ -38,16 +40,20 @@ ASPECTS = [
 
 
 def build_graph():
+    checkpointer = MemorySaver()
+
     def dispatch(state: ReviewState):
-        return [
-            Send("reviewAgent", {
-                "code": state["code"],
-                "language": state["language"],
-                "aspect": t["aspect"],
-                "prompt": t["prompt"],
-            })
-            for t in ASPECTS
-        ]
+        return Command(
+            goto=[
+                Send("reviewAgent", {
+                    "code": state["code"],
+                    "language": state["language"],
+                    "aspect": t["aspect"],
+                    "prompt": t["prompt"],
+                })
+                for t in ASPECTS
+            ]
+        )
 
     def review_agent(state: SingleReviewState):
         llm = get_llm(temperature=0)
@@ -67,6 +73,8 @@ def build_graph():
 
     def generate_report(state: ReviewState):
         llm = get_llm()
+        if not state["reviewResults"]:
+            return {"report": "无法生成报告"}
         avg_score = round(
             sum(r["score"] for r in state["reviewResults"])
             / len(state["reviewResults"])
@@ -90,7 +98,7 @@ def build_graph():
     graph.add_edge(START, "dispatch")
     graph.add_edge("reviewAgent", "generateReport")
     graph.add_edge("generateReport", END)
-    return graph.compile()
+    return graph.compile(checkpointer=checkpointer)
 
 
 graph = build_graph()
@@ -101,7 +109,11 @@ class CodeReviewService:
     async def review(code: str, language: str = "TypeScript"):
         import time
         t0 = time.time()
-        result = await graph.ainvoke({"code": code, "language": language})
+        thread_id = f"review-{id(code)}"
+        result = await graph.ainvoke(
+            {"code": code, "language": language},
+            config={"configurable": {"thread_id": thread_id}}
+        )
         return {
             "language": language,
             "reviewResults": result["reviewResults"],

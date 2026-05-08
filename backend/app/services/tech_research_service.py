@@ -1,5 +1,6 @@
 import json
-from typing import TypedDict, Literal
+import operator
+from typing import TypedDict, Literal, Annotated
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Send, Command, interrupt
 from langgraph.checkpoint.memory import MemorySaver
@@ -16,14 +17,14 @@ FALLBACK_DIMENSIONS = [
 
 class TechResearchState(TypedDict):
     question: str
-    researchResults: list[dict]
+    researchResults: Annotated[list[dict], operator.add]
     analysis: str
     techOptions: list[dict]
     report: str
     humanFeedback: str
     reviewStatus: Literal["pending", "approved", "rejected", "need_revision"]
     revisionCount: int
-    executionLog: list[str]
+    executionLog: Annotated[list[str], operator.add]
 
 
 class SingleResearchState(TypedDict):
@@ -82,14 +83,16 @@ class TechResearchService:
                 )
             ])
             dimensions = safe_parse_array(res.content, FALLBACK_DIMENSIONS)
-            return [
-                Send("researchAgent", {
-                    "question": state["question"],
-                    "dimension": d["dimension"],
-                    "focusPoints": d.get("focusPoints", ["待调研"]),
-                })
-                for d in dimensions[:4]
-            ]
+            return Command(
+                goto=[
+                    Send("researchAgent", {
+                        "question": state["question"],
+                        "dimension": d["dimension"],
+                        "focusPoints": d.get("focusPoints", ["待调研"]),
+                    })
+                    for d in dimensions[:4]
+                ]
+            )
 
         def research_agent(state: SingleResearchState):
             llm = get_llm()

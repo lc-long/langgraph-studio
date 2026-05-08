@@ -1,14 +1,16 @@
-from typing import TypedDict
+from typing import TypedDict, Annotated
 from langgraph.graph import StateGraph, START, END
-from langgraph.types import Send
+from langgraph.types import Send, Command
+from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage
+import operator
 
 from app.services.llm_factory import get_llm
 
 
 class ParallelState(TypedDict):
     task: str
-    results: list[dict]
+    results: Annotated[list[dict], operator.add]
     finalReport: str
 
 
@@ -17,6 +19,8 @@ class SubState(TypedDict):
 
 
 def build_graph():
+    checkpointer = MemorySaver()
+
     def split_task(state: ParallelState):
         llm = get_llm()
         res = llm.invoke([
@@ -25,10 +29,12 @@ def build_graph():
             )
         ])
         sub_tasks = [t.strip() for t in res.content.split("\n") if t.strip()][:3]
-        return [
-            Send("processSubTask", {"task": task})
-            for task in sub_tasks
-        ]
+        return Command(
+            goto=[
+                Send("processSubTask", {"task": task})
+                for task in sub_tasks
+            ]
+        )
 
     def process_sub_task(state: SubState):
         llm = get_llm()
@@ -55,7 +61,7 @@ def build_graph():
     graph.add_edge(START, "splitTask")
     graph.add_edge("processSubTask", "mergeResults")
     graph.add_edge("mergeResults", END)
-    return graph.compile()
+    return graph.compile(checkpointer=checkpointer)
 
 
 graph = build_graph()
@@ -66,7 +72,11 @@ class ParallelService:
     async def run(task: str):
         import time
         t0 = time.time()
-        result = await graph.ainvoke({"task": task})
+        thread_id = f"parallel-{id(task)}"
+        result = await graph.ainvoke(
+            {"task": task},
+            config={"configurable": {"thread_id": thread_id}}
+        )
         return {
             "subTasks": [r["task"] for r in result["results"]],
             "results": result["results"],

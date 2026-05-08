@@ -1,17 +1,17 @@
 import uuid
-from typing import Any, Literal
+from typing import Any, Literal, TypedDict
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Command
 
 from app.services.llm_factory import get_llm
 
-RunState = {
-    "input": str,
-    "output": str,
-    "logs": list[str],
-    "nodeResults": dict,
-    "condBranch": str,
-}
+
+class RunState(TypedDict):
+    input: str
+    output: str
+    logs: list[str]
+    nodeResults: dict
+    condBranch: str
 
 
 class WorkflowStore:
@@ -163,10 +163,15 @@ def make_handler(data: dict, llm_instance: ChatOllama):
             return {"output": out, "logs": [f"✅ [{label}] {lang} 代码执行完成"], "nodeResults": {label: {"lang": lang, "output": out}}}
 
         elif node_type == "condition":
-            expr = data.get("condition", "false")
+            expr = (data.get("condition", "false")
+                .replace("===", "==")
+                .replace("!==", "!="))
             try:
-                cond_fn = __import__("Function")("output", "input", f"return !!({expr})")
-                cond_bool = cond_fn(state.get("output", ""), state.get("input", ""))
+                output_val = state.get("output", "")
+                input_val = state.get("input", "")
+                _eval_globals = {"output": output_val, "input": input_val}
+                exec("import json", _eval_globals)
+                cond_bool = bool(eval(expr, _eval_globals))
             except Exception:
                 cond_bool = False
             cond_branch = "true" if cond_bool else "false"
