@@ -7,3 +7,4 @@ langgraph==1.2.0
 pydantic==2.9.2
 python-dotenv==1.0.1
 aiohttp==3.10.5
+duckduckgo-search==7.3.0
