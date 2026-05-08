@@ -68,10 +68,11 @@ class TechResearchService:
                 return fallback
 
         def parse_task(state: TechResearchState):
+            """动态拆解任务为多维度并行调研，使用 Send API 实现真正的并发执行"""
             llm = get_llm()
             res = llm.invoke([
                 HumanMessage(
-                    content=f"""你是技术分析师。把以下技术选型问题拆分成 3 个独立的调研维度。
+                    content=f"""你是技术分析师。把以下技术选型问题拆分成 3-4 个独立的调研维度。
 问题：{state['question']}
 
 严格按照以下 JSON 数组格式输出，不要输出任何其他内容，不要加说明文字：
@@ -83,6 +84,7 @@ class TechResearchService:
                 )
             ])
             dimensions = safe_parse_array(res.content, FALLBACK_DIMENSIONS)
+            # Send API: 一次性将所有调研任务并行分发，形成 fan-out/fan-in 模式
             return Command(
                 goto=[
                     Send("researchAgent", {
@@ -91,7 +93,10 @@ class TechResearchService:
                         "focusPoints": d.get("focusPoints", ["待调研"]),
                     })
                     for d in dimensions[:4]
-                ]
+                ],
+                update={
+                    "executionLog": [f"📋 任务已拆分为 {len(dimensions[:4])} 个维度，并行研究中..."],
+                },
             )
 
         def research_agent(state: SingleResearchState):
@@ -119,6 +124,10 @@ class TechResearchService:
             }
 
         def analyze_results(state: TechResearchState):
+            """聚合约 3-4 个并行 Agent 的调研结果，进行综合分析"""
+            import time
+            t0 = time.time()
+            dim_count = len(state["researchResults"])
             llm = get_llm()
             text = "\n\n".join(
                 f"【{r['dimension']}】\n发现：{r['findings']}\n优势：{', '.join(r.get('pros', []))}\n劣势：{', '.join(r.get('cons', []))}"
@@ -126,7 +135,7 @@ class TechResearchService:
             )
             res = llm.invoke([
                 HumanMessage(
-                    content=f"""根据以下多维度调研结果，给出综合技术分析和选型建议。
+                    content=f"""根据以下 {dim_count} 个维度的并行调研结果，给出综合技术分析和选型建议。
 原始问题：{state['question']}
 各维度调研结果：
 {text}
@@ -135,6 +144,7 @@ class TechResearchService:
 {{"analysis":"综合结论，2-3句话","techOptions":[{{"name":"技术方案名","score":8,"bestFor":"最适合的场景"}}]}}"""
                 )
             ])
+            elapsed_ms = (time.time() - t0) * 1000
             fallback = {"analysis": "综合分析完成，建议结合实际场景选型", "techOptions": []}
             result = safe_parse_object(res.content, fallback)
             if not isinstance(result.get("techOptions"), list):
@@ -142,7 +152,7 @@ class TechResearchService:
             return {
                 "analysis": result.get("analysis", fallback["analysis"]),
                 "techOptions": result.get("techOptions", []),
-                "executionLog": ["✅ 综合分析完成"],
+                "executionLog": [f"✅ 综合分析完成（{dim_count} 维度并行调研 → 聚合耗时 {elapsed_ms:.0f}ms）"],
             }
 
         def generate_report(state: TechResearchState):

@@ -8,11 +8,15 @@ import operator
 from app.services.llm_factory import get_llm
 
 
+def last_write_wins(left, right):
+    return right
+
+
 class SupervisorState(TypedDict):
     messages: Annotated[list, operator.add]
-    nextAgent: str
+    nextAgent: Annotated[str, last_write_wins]
     completedAgents: Annotated[list[str], operator.add]
-    step: str
+    step: Annotated[str, last_write_wins]
 
 
 def build_graph():
